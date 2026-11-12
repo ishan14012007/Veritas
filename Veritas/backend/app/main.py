@@ -150,7 +150,21 @@ def create_application() -> FastAPI:
 
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     static_dir = os.path.join(workspace_root, "static")
-    dist_dir = os.path.join(workspace_root, "Veritas", "frontend", "dist")
+
+    # Multi-path search for frontend dist directory
+    possible_dist_dirs = [
+        os.path.join(workspace_root, "Veritas", "frontend", "dist"),
+        os.path.join(workspace_root, "frontend", "dist"),
+        os.path.join(workspace_root, "dist"),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend", "dist")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "Veritas", "frontend", "dist")),
+    ]
+    dist_dir = None
+    for candidate in possible_dist_dirs:
+        if os.path.exists(os.path.join(candidate, "index.html")):
+            dist_dir = candidate
+            break
 
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -158,13 +172,13 @@ def create_application() -> FastAPI:
         if os.path.exists(js_dir):
             app.mount("/js", StaticFiles(directory=js_dir), name="js")
 
-        @app.get("/argus", tags=["ARGUS UI"])
         @app.get("/argus/simulator", tags=["ARGUS UI"])
         async def serve_argus_ui():
             return FileResponse(os.path.join(static_dir, "index.html"))
 
     # Mount React Frontend if built dist exists
-    if os.path.exists(dist_dir):
+    if dist_dir:
+        logger.info(f"[VERITAS] Serving React frontend from {dist_dir}")
         assets_dir = os.path.join(dist_dir, "assets")
         if os.path.exists(assets_dir):
             app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
@@ -173,6 +187,7 @@ def create_application() -> FastAPI:
         @app.get("/veritas", tags=["VERITAS UI"])
         @app.get("/accord", tags=["ACCORD UI"])
         @app.get("/accord/ingest", tags=["ACCORD UI"])
+        @app.get("/argus", tags=["ARGUS UI"])
         async def serve_veritas_react_ui():
             return FileResponse(os.path.join(dist_dir, "index.html"))
 
@@ -199,6 +214,18 @@ def create_application() -> FastAPI:
             "docs_url": "/docs",
             "api_v1": settings.API_V1_STR,
         }
+
+    # SPA Fallback for client-side routing (must be defined last)
+    if dist_dir:
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa_fallback(full_path: str):
+            if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("static/") or full_path.startswith("assets/"):
+                raise HTTPException(status_code=404, detail="Not Found")
+            # If requesting a specific file that exists in dist_dir (e.g. vite.svg, favicon)
+            target = os.path.join(dist_dir, full_path)
+            if os.path.isfile(target):
+                return FileResponse(target)
+            return FileResponse(os.path.join(dist_dir, "index.html"))
 
     return app
 

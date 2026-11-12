@@ -226,4 +226,6 @@ dist-ssr/
 *.local
 .pnp
 .pnp.js
+!frontend/dist/**
+!frontend/dist/
 

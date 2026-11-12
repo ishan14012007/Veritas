@@ -16,6 +16,10 @@ dist/
 dist-ssr/
 .pnp
 .pnp.js
+!dist/**
+!dist/
+!Veritas/frontend/dist/**
+!Veritas/frontend/dist/
 
 # Environment Variables & Secrets (NEVER COMMIT SECRETS TO GITHUB)
 .env

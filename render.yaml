@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: argus-fraud-interceptor
+    name: veritas-platform
     runtime: python
     plan: free
     region: oregon
