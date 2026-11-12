@@ -40,14 +40,30 @@ async def lifespan(app: FastAPI):
     # Automatically start ARQ worker in background for asynchronous tasks (e.g. Gemini analysis)
     arq_worker = None
     arq_task = None
+    import socket
+    redis_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    redis_sock.settimeout(0.3)
+    redis_available = False
     try:
-        from arq.worker import create_worker
-        from app.core.tasks.worker import WorkerSettings
-        arq_worker = create_worker(WorkerSettings)
-        arq_task = asyncio.create_task(arq_worker.async_run())
-        logger.info("[VERITAS] ARQ Background Worker active and listening on Redis queue.")
-    except Exception as e:
-        logger.warning(f"[VERITAS] ARQ worker could not be started: {e}")
+        res = redis_sock.connect_ex(('127.0.0.1', 6379))
+        if res == 0:
+            redis_available = True
+    except Exception:
+        pass
+    finally:
+        redis_sock.close()
+
+    if redis_available:
+        try:
+            from arq.worker import create_worker
+            from app.core.tasks.worker import WorkerSettings
+            arq_worker = create_worker(WorkerSettings)
+            arq_task = asyncio.create_task(arq_worker.async_run())
+            logger.info("[VERITAS] ARQ Background Worker active and listening on Redis queue.")
+        except Exception as e:
+            logger.warning(f"[VERITAS] ARQ worker could not be started: {e}")
+    else:
+        logger.info("[VERITAS] Standalone/Cloud mode: Redis queue not active on localhost; tasks execute synchronously.")
 
     yield
 

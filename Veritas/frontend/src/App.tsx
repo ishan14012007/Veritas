@@ -52,6 +52,8 @@ export const App: React.FC = () => {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/veritas" element={<HomePage />} />
+            <Route path="/accord" element={<IngestionTestPage />} />
             <Route path="/accord/ingest" element={<IngestionTestPage />} />
             <Route path="/argus" element={<ArgusPage />} />
             <Route path="*" element={<NotFoundPage />} />

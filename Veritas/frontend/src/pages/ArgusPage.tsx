@@ -13,7 +13,7 @@ export const ArgusPage: React.FC = () => {
           </span>
         </div>
         <a
-          href="/argus"
+          href="/argus/simulator"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 font-medium transition"
@@ -23,7 +23,7 @@ export const ArgusPage: React.FC = () => {
         </a>
       </div>
       <iframe
-        src="/argus"
+        src="/argus/simulator"
         title="ARGUS Merchant Trust Dashboard"
         className="w-full flex-1 border-0"
       />

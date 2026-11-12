@@ -20,14 +20,44 @@ def get_engine() -> AsyncEngine:
     """Initialize or return the cached async SQLAlchemy engine."""
     global _engine
     if _engine is None:
+        import os
+        import socket
         settings = get_settings()
+        db_url = settings.DATABASE_URL
+
+        # If PostgreSQL on localhost is specified, check if it is reachable.
+        # If not reachable (e.g. running on Render without local Postgres),
+        # fall back to the pre-seeded SQLite database so ACCORD is 100% operational.
+        if "postgresql" in db_url and "localhost" in db_url:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.3)
+            try:
+                port = 5432
+                if ":" in db_url.split("@")[-1]:
+                    try:
+                        port = int(db_url.split("@")[-1].split(":")[1].split("/")[0])
+                    except Exception:
+                        pass
+                res = sock.connect_ex(('127.0.0.1', port))
+                if res != 0:
+                    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+                    sqlite_path = os.path.join(workspace_root, "Veritas", "veritas.db")
+                    if not os.path.exists(sqlite_path):
+                        sqlite_path = os.path.join(workspace_root, "veritas.db")
+                    db_url = f"sqlite+aiosqlite:///{sqlite_path}"
+                    logger.warning(f"[DATABASE] Localhost PostgreSQL not reachable. Falling back to SQLite: {db_url}")
+            except Exception:
+                pass
+            finally:
+                sock.close()
+
         connect_args = {}
         # SQLite async requires check_same_thread=False
-        if settings.DATABASE_URL.startswith("sqlite"):
+        if db_url.startswith("sqlite"):
             connect_args["check_same_thread"] = False
 
         _engine = create_async_engine(
-            settings.DATABASE_URL,
+            db_url,
             echo=settings.DEBUG and not settings.ENVIRONMENT == "production",
             future=True,
             connect_args=connect_args,
