@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARGUS | Autonomous Merchant Trust Registry & Pre-Settlement Fraud Interceptor</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- AG Grid Community CDN (Sponsor Integration) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-grid.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/styles/ag-theme-alpine.css">
+  <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.1/dist/ag-grid-community.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #080c14;
+      color: #f1f5f9;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ag-theme-alpine {
+      --ag-background-color: #0f172a !important;
+      --ag-odd-row-background-color: #131d33 !important;
+      --ag-header-background-color: #1e293b !important;
+      --ag-header-foreground-color: #94a3b8 !important;
+      --ag-foreground-color: #e2e8f0 !important;
+      --ag-border-color: rgba(255, 255, 255, 0.08) !important;
+      --ag-row-hover-color: #1e293b !important;
+      --ag-selected-row-background-color: #1e293b !important;
+    }
+    .ag-theme-alpine .ag-root-wrapper {
+      background-color: #0f172a !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    .ag-theme-alpine .ag-row {
+      background-color: #0f172a !important;
+      color: #e2e8f0 !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    }
+    .ag-theme-alpine .ag-row-odd {
+      background-color: #131d33 !important;
+    }
+    .ag-theme-alpine .ag-row-even {
+      background-color: #0a101f !important;
+    }
+    .ag-theme-alpine .ag-row-hover {
+      background-color: #1e293b !important;
+    }
+    .ag-theme-alpine .ag-header {
+      background-color: #172133 !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    .ag-theme-alpine .ag-header-cell-text {
+      color: #94a3b8 !important;
+      font-weight: 600 !important;
+    }
+    .ag-theme-alpine .ag-cell {
+      display: flex !important;
+      align-items: center !important;
+      color: #e2e8f0 !important;
+    }
+    @keyframes pulse-siren {
+      0%, 100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+      50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.9); }
+    }
+    .siren-active {
+      animation: pulse-siren 1.2s infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-16">
+
+  <!-- VERITAS Unified Global Shell Header (Matches ACCORD and Core Platform) -->
+  <header class="border-b border-slate-800 bg-slate-950/95 backdrop-blur px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-6">
+      <a href="/veritas" class="flex items-center gap-2.5 text-white font-bold text-base tracking-wide hover:opacity-90" title="Return to VERITAS Home">
+        <div class="bg-emerald-600 p-1.5 rounded-lg text-white">
+          <i data-lucide="shield" class="w-4 h-4"></i>
+        </div>
+        <span>VERITAS</span>
+      </a>
+      <nav class="flex items-center gap-4 text-xs font-medium">
+        <a href="/veritas" class="text-slate-300 hover:text-white flex items-center gap-1.5 transition">
+          <i data-lucide="home" class="w-3.5 h-3.5 text-slate-400"></i>
+          VERITAS Home
+        </a>
+        <a href="/accord/ingest" class="text-slate-300 hover:text-emerald-400 flex items-center gap-1.5 transition">
+          <i data-lucide="message-square" class="w-3.5 h-3.5 text-emerald-400"></i>
+          ACCORD Ingestion
+        </a>
+        <a href="/argus" class="text-cyan-400 font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-cyan-400"></i>
+          ARGUS Interceptor
+        </a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="/veritas" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition" title="Close Argus & Return to Veritas Platform">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+        <span>Close Argus & Return Home</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Navbar -->
+  <nav class="border-b border-slate-800/80 bg-slate-950/90 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-[96%] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-gradient-to-tr from-cyan-600 to-blue-600 text-white p-2 rounded-xl shadow-lg shadow-cyan-500/20">
+          <i data-lucide="shield" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-extrabold text-xl tracking-tight text-white">ARGUS</span>
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Trust Infrastructure</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Pre-Settlement Interceptor • 7-Day Caching • Single-Flight Engine</p>
+        </div>
+      </div>
+      
+      <!-- Navigation Tabs -->
+      <div class="flex items-center space-x-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+        <button onclick="switchTab('simulator')" id="tabBtn-simulator" class="px-3 py-1.5 rounded-lg transition-all text-white bg-blue-600 shadow-md">
+          <i data-lucide="zap" class="w-3.5 h-3.5 inline mr-1"></i> Live Interceptor
+        </button>
+        <button onclick="switchTab('registry')" id="tabBtn-registry" class="px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white">
+          <i data-lucide="globe" class="w-3.5 h-3.5 inline mr-1"></i> Trust Registry
+        </button>
+        <button onclick="switchTab('audit')" id="tabBtn-audit" class="px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white">
+          <i data-lucide="activity" class="w-3.5 h-3.5 inline mr-1"></i> Audit Ledger
+        </button>
+        <button onclick="switchTab('appeals')" id="tabBtn-appeals" class="px-3 py-1.5 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1">
+          <i data-lucide="help-circle" class="w-3.5 h-3.5 inline"></i> Appeals Center
+          <span id="appealsBadge" class="bg-amber-500/20 text-amber-300 text-[10px] px-1.5 rounded-full border border-amber-500/30">0</span>
+        </button>
+      </div>
+
+      <div class="hidden md:flex items-center space-x-3 text-xs font-mono">
+        <a href="/veritas"
+          class="inline-flex items-center text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-full border border-emerald-500/20 transition-all text-[11px] font-sans font-semibold"
+          title="Return to VERITAS Unified Platform Hub">
+          <i data-lucide="layout-grid" class="w-3 h-3 mr-1.5 text-emerald-400"></i> Veritas Hub
+        </a>
+        <a href="/api/v1/postman/collection" download="argus_api_collection.json"
+          class="inline-flex items-center text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-full border border-amber-500/20 transition-all text-[11px] font-sans font-semibold"
+          title="Download official Postman Collection v2.1 for API testing">
+          <i data-lucide="send" class="w-3 h-3 mr-1.5 text-amber-400"></i> Postman Collection
+        </a>
+        <span class="inline-flex items-center text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 text-[11px]">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-2"></span> SQLite WAL Active
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="max-w-[96%] 2xl:max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+
+    <!-- Top Architecture Banner -->
+    <div class="glass rounded-2xl p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4 border border-cyan-500/20 bg-gradient-to-r from-cyan-950/30 via-slate-900 to-indigo-950/20">
+      <div class="flex items-center space-x-4">
+        <div class="p-3 bg-cyan-500/10 rounded-xl text-cyan-400">
+          <i data-lucide="layers" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Argus Architecture: Pre-Settlement Hold & Asynchronous Risk Protection</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Funds are authorized on hold with zero checkout delay. Parallel workers verify domain forensics, policies, and pricing. Results are cached for 7 days with conditional change detection.</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 text-xs font-mono">
+        <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">1. Pre-Hold</span>
+        <span class="text-slate-600">➔</span>
+        <span class="px-2.5 py-1 rounded-lg bg-blue-950/70 border border-blue-800/50 text-blue-300">2. 7-Day Cache / Parallel AI</span>
+        <span class="text-slate-600">➔</span>
+        <span class="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/50 text-emerald-300">3. Capture or Appeal</span>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: LIVE INTERCEPTOR SIMULATOR                        -->
+    <!-- ======================================================== -->
+    <div id="tabContent-simulator" class="space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT: Checkout Intent Simulator Form (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="glass rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <i data-lucide="shopping-bag" class="w-4 h-4 text-cyan-400"></i> Checkout Intent Simulator
+              </h3>
+              <span id="paypalStatusBadge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1 animate-pulse"></span> Sandbox Active
+              </span>
+            </div>
+
+            <!-- Dynamic Checkout Intent Presets Manager -->
+            <div class="mb-4">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i> Checkout Intent Presets
+                </label>
+                <div class="flex items-center space-x-1.5">
+                  <button type="button" onclick="openAddIntentModal()" class="px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1 transition-all">
+                    <i data-lucide="plus" class="w-3 h-3"></i> Add Intent
+                  </button>
+                  <button type="button" onclick="saveCurrentFormAsPreset()" title="Save current form values as a new intent" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] flex items-center gap-1 transition-all">
+                    <i data-lucide="save" class="w-3 h-3"></i> Save Form
+                  </button>
+                  <button type="button" onclick="resetDefaultPresets()" title="Reset to default brand presets" class="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white text-[10px] transition-all">
+                    <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Presets Grid Container (Dynamically rendered & adaptable) -->
+              <div id="presetsContainer" class="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-0.5">
+                <!-- Dynamically rendered via app.js -->
+              </div>
+            </div>
+
+            <!-- Active Form Intent Status Pill -->
+            <div id="activeIntentBanner" class="flex items-center justify-between text-[11px] px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 mb-3">
+              <span class="text-slate-400 flex items-center gap-1.5 font-medium">
+                <span id="activeIntentDot" class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
+                <span>Active Target: <strong id="activeIntentLabel" class="text-slate-200">Custom</strong></span>
+              </span>
+              <span id="activeIntentScore" class="font-mono text-[10px] font-bold text-slate-400">Untested</span>
+            </div>
+
+            <form id="intentForm" onsubmit="event.preventDefault(); executeVerification();" class="space-y-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 mb-1">Declared Brand Name</label>
+                <input type="text" id="brandInput" value="Amazon India" required
+                  class="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500">
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 mb-1">Merchant Store URL (Return / Host)</label>
+                <input type="text" id="urlInput" value="https://amaz0n-mega-deals.xyz/buy/airpods" required
+                  class="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-300 mb-1">Product Name</label>
+                  <input type="text" id="productInput" value="Apple AirPods Pro 2" required
+                    class="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-300 mb-1">Price (USD)</label>
+                  <input type="number" id="priceInput" step="0.01" value="14.99" required
+                    class="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+                </div>
+              </div>
+
+              <div class="pt-2 space-y-3">
+                <button type="submit" id="payButton"
+                  class="w-full bg-[#ffc439] hover:bg-[#f4b628] text-slate-900 font-extrabold py-2.5 px-4 rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center space-x-2 transition-all transform active:scale-95 text-xs">
+                  <span class="italic font-black text-blue-900">Pay</span><span class="italic font-black text-sky-600">Pal</span>
+                  <span class="text-xs font-bold ml-1 text-slate-800">1-Click Fast Interceptor Test</span>
+                </button>
+
+                <div class="relative flex py-1 items-center">
+                  <div class="flex-grow border-t border-slate-800"></div>
+                  <span class="flex-shrink mx-2 text-[10px] font-mono text-slate-500 uppercase">Live PayPal SDK Popup</span>
+                  <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <!-- PayPal Official Smart Buttons Container -->
+                <div id="paypal-button-container" class="min-h-[40px] w-full"></div>
+                <div id="paypal-sdk-loading" class="text-center text-[10px] font-mono text-slate-400 py-1">
+                  <span class="inline-block animate-spin mr-1">⚙️</span> Connecting PayPal SDK...
+                </div>
+
+                <!-- Sandbox Guide Helper -->
+                <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] space-y-2 mt-2">
+                  <div class="flex items-center justify-between text-slate-300 font-semibold">
+                    <span class="flex items-center gap-1 text-cyan-400">
+                      <i data-lucide="zap" class="w-3.5 h-3.5"></i> Testing in PayPal Sandbox
+                    </span>
+                    <span class="text-[10px] text-amber-400/90 font-mono">Sandbox Environment</span>
+                  </div>
+                  <p class="text-slate-400 text-[10px] leading-relaxed">
+                    ⚡ <b>Fastest Path</b>: Click the yellow <b>1-Click Fast Interceptor Test</b> button above. It invokes the real PayPal Orders v2 pre-settlement API, runs the 4-worker AI forensic engine, and settles/voids funds with <b>zero typing, zero cards, and zero SMS codes</b>!
+                  </p>
+                  <p class="text-slate-400 text-[10px] leading-relaxed">
+                    🔒 <b>PayPal Popup Test</b>: Click the gold <b>PayPal</b> button below to log in with your PayPal Sandbox Buyer account (from <code class="text-cyan-400">developer.paypal.com > Sandbox Accounts</code>).
+                  </p>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- RIGHT: Parallel Risk Engine & Verdict Display (7 Cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          
+          <!-- Verdict Card -->
+          <div id="verdictCard" class="glass rounded-2xl p-5 border border-slate-800 transition-all duration-300">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center space-x-3">
+                <div id="verdictIconContainer" class="p-3 rounded-2xl bg-slate-800 text-slate-400">
+                  <i id="verdictIcon" data-lucide="shield" class="w-7 h-7"></i>
+                </div>
+                <div>
+                  <span id="verdictBadge" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">Awaiting Intent</span>
+                  <h3 id="verdictTitle" class="text-lg font-extrabold text-slate-100 mt-0.5">Ready for Verification</h3>
+                  <p id="verdictSubtitle" class="text-xs text-slate-400 mt-0.5">Click checkout to watch the parallel forensic engine evaluate the intent.</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-[10px] text-slate-400 uppercase font-semibold">Trust Score</div>
+                <div id="scoreDisplay" class="text-2xl font-black font-mono text-slate-500 mt-0.5">--</div>
+              </div>
+            </div>
+
+            <!-- Evidence Dossier & Quick Appeal Action -->
+            <div id="evidenceBox" class="mt-4 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 hidden">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-400"></i> Forensic Threat Evidence
+                </h4>
+                <button onclick="openAppealModalFromIncident()" id="quickAppealBtn" class="text-xs font-bold px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 flex items-center gap-1">
+                  <i data-lucide="help-circle" class="w-3 h-3"></i> Raise Appeal Ticket
+                </button>
+              </div>
+              <ul id="evidenceList" class="space-y-1 text-xs text-slate-300"></ul>
+            </div>
+          </div>
+
+          <!-- PayPal Live 2-Phase Pre-Settlement Execution Pipeline -->
+          <div id="paypalLifecycleCard" class="glass rounded-2xl p-4 border border-blue-500/30 bg-gradient-to-br from-blue-950/20 via-slate-900 to-slate-900 transition-all duration-300">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+              <div class="flex items-center space-x-2">
+                <span class="p-1.5 rounded-lg bg-blue-500/20 text-blue-400">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </span>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                    <span>PayPal Orders v2 Lifecycle Interception</span>
+                    <span id="ppLiveBadge" class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">2-PHASE ACTIVE</span>
+                  </h4>
+                  <p class="text-[10px] text-slate-400">Pre-Settlement Hold (intent: AUTHORIZE) &rarr; AI Forensic Verification &rarr; Capture or Void</p>
+                </div>
+              </div>
+              <div class="text-left sm:text-right">
+                <span class="text-[9px] font-mono text-slate-400">Merchant Payee ID:</span>
+                <span class="text-[10px] font-mono font-bold text-amber-300 ml-1">2252PMF2CJ7Q2</span>
+              </div>
+            </div>
+
+            <!-- Stepper Timeline -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-800/80 font-mono text-[11px]">
+              <!-- Step 1: Pre-Hold -->
+              <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1 transition-all" id="ppStep1">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400">Phase 1: Pre-Hold</span>
+                  <span id="ppStep1Badge" class="text-slate-500 font-bold">STANDBY</span>
+                </div>
+                <div class="text-[11px] font-bold text-slate-200 truncate" id="ppStep1Title">Order Created</div>
+                <div class="text-[9px] text-slate-400 truncate" id="ppStep1Detail">intent: AUTHORIZE</div>
+              </div>
+
+              <!-- Step 2: Parallel AI Matrix -->
+              <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1 transition-all" id="ppStep2">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400">Phase 2: Argus AI</span>
+                  <span id="ppStep2Badge" class="text-slate-500 font-bold">STANDBY</span>
+                </div>
+                <div class="text-[11px] font-bold text-slate-200 truncate" id="ppStep2Title">4-Worker Scan</div>
+                <div class="text-[9px] text-slate-400 truncate" id="ppStep2Detail">Zero checkout delay</div>
+              </div>
+
+              <!-- Step 3: Pre-Settlement Execution -->
+              <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1 transition-all" id="ppStep3">
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="text-slate-400">Phase 3: Settlement</span>
+                  <span id="ppStep3Badge" class="text-slate-500 font-bold">STANDBY</span>
+                </div>
+                <div class="text-[11px] font-bold text-slate-200 truncate" id="ppStep3Title">Capture vs Void</div>
+                <div class="text-[9px] text-slate-400 truncate" id="ppStep3Detail">Awaiting AI verdict</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Parallel Workers Matrix -->
+          <div class="glass rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-bold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
+                <i data-lucide="cpu" class="w-3.5 h-3.5 text-cyan-400"></i> Parallel Multi-Worker Matrix
+              </h4>
+              <span id="latencyBadge" class="text-[11px] font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                Latency: -- ms
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800" id="w1Card">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i> 1. Domain Forensics
+                  </span>
+                  <span id="w1Status" class="font-mono font-bold text-slate-500 text-[10px]">STANDBY</span>
+                </div>
+                <p id="w1Detail" class="text-[10px] text-slate-400">Typosquatting, TLD risk, and brand match</p>
+                <div class="mt-1.5 text-[10px] font-mono text-slate-500 flex justify-between">
+                  <span id="w1Score">Score: --</span>
+                  <span id="w1Time">Time: --</span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800" id="w2Card">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400"></i> 2. Page & Policy Inspector
+                  </span>
+                  <span id="w2Status" class="font-mono font-bold text-slate-500 text-[10px]">STANDBY</span>
+                </div>
+                <p id="w2Detail" class="text-[10px] text-slate-400">Terms, Privacy, Refund policies, and catalog depth</p>
+                <div class="mt-1.5 text-[10px] font-mono text-slate-500 flex justify-between">
+                  <span id="w2Score">Score: --</span>
+                  <span id="w2Time">Time: --</span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800" id="w3Card">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="tag" class="w-3.5 h-3.5 text-purple-400"></i> 3. Price Anomaly AI
+                  </span>
+                  <span id="w3Status" class="font-mono font-bold text-slate-500 text-[10px]">STANDBY</span>
+                </div>
+                <p id="w3Detail" class="text-[10px] text-slate-400">Detects 80%+ discount counterfeit anomalies</p>
+                <div class="mt-1.5 text-[10px] font-mono text-slate-500 flex justify-between">
+                  <span id="w3Score">Score: --</span>
+                  <span id="w3Time">Time: --</span>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800" id="w4Card">
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="font-bold text-slate-200 flex items-center gap-1.5">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-cyan-400"></i> 4. 3-Tier Mitigation
+                  </span>
+                  <span id="w4Status" class="font-mono font-bold text-slate-500 text-[10px]">STANDBY</span>
+                </div>
+                <p id="w4Detail" class="text-[10px] text-slate-400">Allow vs Warn vs Void & Quarantine</p>
+                <div class="mt-1.5 text-[10px] font-mono text-slate-500 flex justify-between">
+                  <span id="w4Score">Score: --</span>
+                  <span id="w4Time">Status: --</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: GLOBAL MERCHANT TRUST REGISTRY (AG GRID)          -->
+    <!-- ======================================================== -->
+    <div id="tabContent-registry" class="space-y-4 hidden">
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="database" class="w-4 h-4 text-cyan-400"></i> Global Merchant Trust Registry (Shared Server)
+            </h3>
+            <p class="text-xs text-slate-400">Normalized relationships between merchants, authorized domains, trust scores, and 7-day cache TTLs.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="text" id="registryFilter" oninput="onRegistryFilterChanged()" placeholder="Filter merchants..."
+              class="bg-slate-900 text-xs text-slate-200 border border-slate-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500 font-mono">
+            <button onclick="loadRegistryGrid()" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div id="registryGrid" class="ag-theme-alpine w-full h-[600px] min-h-[500px] rounded-xl overflow-hidden"></div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: AUDIT LEDGER (AG GRID)                            -->
+    <!-- ======================================================== -->
+    <div id="tabContent-audit" class="space-y-4 hidden">
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-cyan-400"></i> Real-Time Intercepted Transactions (Security Audit Ledger)
+            </h3>
+            <p class="text-xs text-slate-400">Persistent log of every transaction evaluated by Argus with full evidence dossiers.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="text" id="auditFilter" oninput="onAuditFilterChanged()" placeholder="Filter audits..."
+              class="bg-slate-900 text-xs text-slate-200 border border-slate-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500 font-mono">
+            <button onclick="loadAuditGrid()" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div id="auditGrid" class="ag-theme-alpine w-full h-[600px] min-h-[500px] rounded-xl overflow-hidden"></div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: MERCHANT APPEALS CENTER (AG GRID)                 -->
+    <!-- ======================================================== -->
+    <div id="tabContent-appeals" class="space-y-4 hidden">
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4 text-amber-400"></i> Merchant Grievance & Appeal Resolution Center
+            </h3>
+            <p class="text-xs text-slate-400">Prevents false-positive lockouts. Review merchant appeals, inspect submitted documents, and restore credentials live.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="text" id="appealsFilter" oninput="onAppealsFilterChanged()" placeholder="Filter appeals..."
+              class="bg-slate-900 text-xs text-slate-200 border border-slate-800 rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500 font-mono">
+            <button onclick="loadAppealsGrid()" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <div id="appealsGrid" class="ag-theme-alpine w-full h-[600px] min-h-[500px] rounded-xl overflow-hidden"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Create Appeal Modal -->
+  <div id="appealModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass rounded-2xl p-6 max-w-lg w-full border border-amber-500/30 bg-slate-950">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-amber-400"></i> Raise Merchant Appeal Ticket
+        </h3>
+        <button onclick="closeAppealModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="event.preventDefault(); submitAppealForm();" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Incident Reference ID</label>
+          <input type="text" id="modalIncidentId" readonly class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-amber-400">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Dispute Category</label>
+          <select id="modalCategory" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200">
+            <option value="BRAND_MISMATCH">Authorized Reseller / Brand Ownership Proof</option>
+            <option value="DOCUMENT_VERIFICATION">Corporate Entity Verification</option>
+            <option value="FALSE_POSITIVE">False Positive Catalog Review</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Merchant Statement & Justification</label>
+          <textarea id="modalStatement" rows="3" required placeholder="Explain why your store domain is authorized..."
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500"></textarea>
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeAppealModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 hover:bg-slate-700">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-xs font-bold text-slate-950">Submit Appeal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Intent Preset Modal -->
+  <div id="addIntentModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass rounded-2xl p-6 max-w-md w-full border border-cyan-500/30 bg-slate-950">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-5 h-5 text-cyan-400"></i> Add Checkout Intent Preset
+        </h3>
+        <button onclick="closeAddIntentModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form onsubmit="event.preventDefault(); submitNewIntent();" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Preset Label / Name</label>
+          <input type="text" id="newIntentName" placeholder="e.g. Sony Electronics Official" required
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Declared Brand Name</label>
+          <input type="text" id="newIntentBrand" placeholder="e.g. Sony" required
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Merchant Store URL (Return / Host)</label>
+          <input type="text" id="newIntentUrl" placeholder="apple.com/buy or https://..." required
+            class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Product Name</label>
+            <input type="text" id="newIntentProduct" placeholder="e.g. WH-1000XM5" required
+              class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Price (USD)</label>
+            <input type="number" id="newIntentPrice" step="0.01" placeholder="399.99" required
+              class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+        </div>
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="closeAddIntentModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 hover:bg-slate-700">Cancel</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-xs font-bold text-slate-950">Add Intent Preset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/ag_grid_setup.js?v=3"></script>
+  <script src="/js/app.js?v=3"></script>
+</body>
+</html>

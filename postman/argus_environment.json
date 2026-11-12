@@ -1,0 +1,25 @@
+{
+  "id": "argus-local-env",
+  "name": "Argus Local & Cloud Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "last_order_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "last_ticket_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

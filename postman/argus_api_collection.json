@@ -1,0 +1,467 @@
+{
+  "info": {
+    "_postman_id": "argus-fraud-interceptor-v2",
+    "name": "ARGUS | Autonomous Merchant Trust & Pre-Settlement Fraud Interceptor",
+    "description": "Comprehensive Postman API Test Suite for Argus (PayPal AI Hackathon 2026). Covers Two-Phase PayPal Settlement Holds (intent: AUTHORIZE), parallel forensic AI workers, 7-day conditional cache evaluation, single-flight concurrency lock, and merchant grievance appeal workflows.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Fraud Interception & Risk Engine",
+      "item": [
+        {
+          "name": "Verify Genuine Merchant (Nike - Passed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Action is APPROVED_FOR_CAPTURE', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.action_taken).to.eql('APPROVED_FOR_CAPTURE');",
+                  "    pm.expect(json.trust_score).to.be.above(70);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand_name\": \"Nike\",\n  \"merchant_url\": \"https://www.nike.com/in/t/air-jordan-1-retro-high-og\",\n  \"product_name\": \"Air Jordan 1 Retro\",\n  \"price\": 180.00,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkout/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "checkout", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Verify Phishing Threat (Amazon Clone - Blocked & Account Sealed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Action is TRANSACTION_VOIDED_AND_ACCOUNT_SEALED', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.action_taken).to.eql('TRANSACTION_VOIDED_AND_ACCOUNT_SEALED');",
+                  "    pm.expect(json.trust_score).to.be.below(45);",
+                  "    pm.expect(json.incident_reference_id).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand_name\": \"Amazon India\",\n  \"merchant_url\": \"https://amaz0n-mega-deals.xyz/buy/airpods\",\n  \"product_name\": \"Apple AirPods Pro 2\",\n  \"price\": 14.99,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkout/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "checkout", "verify"]
+            }
+          }
+        },
+        {
+          "name": "Verify Counterfeit Anomaly (Apple Clearance - Blocked)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Action is TRANSACTION_VOIDED_AND_ACCOUNT_SEALED', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.action_taken).to.eql('TRANSACTION_VOIDED_AND_ACCOUNT_SEALED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand_name\": \"Apple\",\n  \"merchant_url\": \"https://apple-clearance-fest.shop/buy/iphone16\",\n  \"product_name\": \"iPhone 16 Pro Max\",\n  \"price\": 49.99,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/checkout/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "checkout", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. PayPal Two-Phase Settlement (Orders v2)",
+      "item": [
+        {
+          "name": "Get PayPal Gateway Config",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PayPal credentials active', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.configured).to.be.true;",
+                  "    pm.expect(json.mode).to.eql('sandbox');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/paypal/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "paypal", "config"]
+            }
+          }
+        },
+        {
+          "name": "Create Authorization Order (Pre-Settlement Hold)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order created with intent AUTHORIZE', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.order_id).to.not.be.empty;",
+                  "    pm.expect(json.intent).to.eql('AUTHORIZE');",
+                  "    pm.environment.set('last_order_id', json.order_id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 180.00,\n  \"currency\": \"USD\",\n  \"brand_name\": \"Nike\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/paypal/create-order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "paypal", "create-order"]
+            }
+          }
+        },
+        {
+          "name": "Capture Authorized Order (Funds Settled to Genuine Merchant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order captured successfully', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('COMPLETED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{last_order_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/paypal/capture-order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "paypal", "capture-order"]
+            }
+          }
+        },
+        {
+          "name": "Void Authorization & Quarantine Merchant (Scam Prevented)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order voided successfully', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('VOIDED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": \"{{last_order_id}}\",\n  \"merchant_id\": \"MCH-AMAZ0NDE\",\n  \"reason\": \"High-Confidence Brand Impersonation Detected by Argus\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/paypal/void-order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "paypal", "void-order"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Global Merchant Trust Registry & Cache",
+      "item": [
+        {
+          "name": "List All Trust Registry Records (AG Grid Source)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Registry returned array of records', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(Array.isArray(json)).to.be.true;",
+                  "    pm.expect(json.length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/registry",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "registry"]
+            }
+          }
+        },
+        {
+          "name": "Invalidate 7-Day Trust Cache (Force Re-Verification)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Cache invalidated successfully', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('SUCCESS');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"MCH-1F6BBE6E\",\n  \"website_id\": \"WEB-2F2C8B30\",\n  \"reason\": \"ADMIN_SIMULATED_CHANGE_DETECTION\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/cache/invalidate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "cache", "invalidate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Security Audit Ledger",
+      "item": [
+        {
+          "name": "Get Intercepted Transaction Audits",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Audit log returned array of transactions', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(Array.isArray(json)).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-log?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "audit-log"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Merchant Grievance & Appeal Center",
+      "item": [
+        {
+          "name": "List All Appeal Tickets",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Appeals returned array', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(Array.isArray(json)).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/appeals",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "appeals"]
+            }
+          }
+        },
+        {
+          "name": "Submit Merchant Appeal Ticket",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Appeal created in OPEN status', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('OPEN');",
+                  "    pm.environment.set('last_ticket_id', json.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"MCH-TEST-STORE\",\n  \"incident_reference_id\": \"INC-SEAL-889911\",\n  \"reason_category\": \"FALSE_POSITIVE\",\n  \"statement\": \"Official reseller certificate attached. Requesting manual catalog review.\",\n  \"submitted_documents\": [\"https://merchant-docs.example.com/reseller_license.pdf\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appeals/submit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "appeals", "submit"]
+            }
+          }
+        },
+        {
+          "name": "Resolve Appeal (Admin Approve & Restore Credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Appeal resolved successfully', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('RESOLVED');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket_id\": \"{{last_ticket_id}}\",\n  \"action\": \"APPROVE\",\n  \"resolution_notes\": \"Corporate incorporation verified. Merchant restored to VERIFIED with fresh 7-day cache.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/appeals/resolve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "appeals", "resolve"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
